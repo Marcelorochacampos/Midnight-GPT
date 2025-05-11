@@ -5,7 +5,7 @@ from torch.cuda.amp import GradScaler, autocast
 
 from helper import generate_with_prompt
 
-EPOCHS = 5
+EPOCHS = 1
 
 def train(model, optimizer, tokenizer, dataloader, config, training_config):
     scaler = GradScaler()
@@ -35,6 +35,14 @@ def train(model, optimizer, tokenizer, dataloader, config, training_config):
             scaler.update()
 
             print(f"Step {step_num}. Loss {loss.item():.3f}")
+
+            if step_num > 0 and step_num % 100 == 0:
+                print("Model GPT:\n" + generate_with_prompt(model, config, tokenizer, "\n"))
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                model_name = "model_mad_{}_{}.pth".format(timestamp, step_num)
+                path = "./checkpoints/model/{}".format(model_name)
+                print("Storing checkpoint: {}\n".format(path))
+                torch.save(model.state_dict(), path)
 
         print("Epoch: {}".format(epoch))
         print("Model GPT:\n" + generate_with_prompt(model, config, tokenizer, "\n"))

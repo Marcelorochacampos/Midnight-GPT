@@ -50,7 +50,7 @@ def main():
             raise ValueError("You must provide a --subset for the selected Hugging Face dataset")
 
         offset = getattr(args, 'offset', 0)
-        chunk_size = 10000
+        chunk_size = 1000
         range_start = offset * chunk_size
         range_end = (offset + 1) * chunk_size
         print("Dataset -\nRange Start: {}\nRange  End: {}".format(range_start, range_end))
