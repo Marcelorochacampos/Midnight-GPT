@@ -20,7 +20,7 @@ class DemoGPT(nn.Module):
         batch_size, tokens_num = input.shape
 
         x = self.token_embedding_layer(input)
-        sequence = torch.arange(tokens_num, device="cuda")
+        sequence = torch.arange(tokens_num, device="cpu")
         x = x + self.positional_embedding_layer(sequence)
 
         x = self.layers(x)

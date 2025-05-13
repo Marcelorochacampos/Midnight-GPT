@@ -54,7 +54,7 @@ def main():
     model = DemoGPT(config).to(device)
     model.load_state_dict(torch.load(args.model))
 
-    print(generate_with_prompt(model, config, tokenizer, "I have to go to work tomorrow, I forgot to pack food for lunch", max_tokens=5000))
+    print(generate_with_prompt(model, config, tokenizer, "Ancient greek generals", max_tokens=5000))
 
 if __name__ == "__main__":
     main()
