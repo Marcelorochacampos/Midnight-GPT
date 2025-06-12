@@ -19,9 +19,11 @@ body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: "Inter", "Quicksand", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
 }
 
 * {
@@ -37,7 +39,7 @@ a {
 
 .rgb-text {
   height: 70px;
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: 600;
   text-align: center;
   font-family: 'Inter', 'Segoe UI', sans-serif;
