@@ -1,0 +1,39 @@
+model_architecture:
+  vocabulary_size: 50257
+  context_size: 512
+  embedding_dim: 768
+  heads_num: 12
+  layers_num: 10
+  dropout_rate: 0.1
+  use_bias: false
+
+paths:
+  checkpoints:
+    optuna: ./checkpoints/optuna
+    training: ./checkpoints/training
+  model:
+    dev_weights: ./model/dev/midnight_3.pt
+
+inference:
+  temperature: 0.8
+  max_new_tokens: 512
+
+optuna:
+  param_space:
+    lr:
+      min: 2.0e-5
+      max: 2.0e-4
+      log: true
+    batch_size:
+      values: [4, 8]
+    weight_decay:
+      min: 1.0e-6
+      max: 1.0e-2
+      log: true
+    grad_accum:
+      values: [2, 4]
+
+training:
+  total_train_tokens: 300000000
+  eval_steps: 500
+  save_steps: 500
