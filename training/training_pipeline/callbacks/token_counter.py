@@ -5,7 +5,7 @@ class TokenCounterCallback(TrainerCallback):
 	def __init__(self, context_size, batch_size, grad_accum, mlflow):
 		self.tokens_seen = 0
 		self.tokens_per_step = context_size * batch_size * grad_accum
-        self.mlflow = mlflow
+		self.mlflow = mlflow
 
 	def on_step_end(self, args, state, control, **kwargs):
 		self.tokens_seen += self.tokens_per_step

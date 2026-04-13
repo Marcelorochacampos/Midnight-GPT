@@ -1,45 +1,38 @@
 import os
-import re
 import json
 import math
 import mlflow
-import random
 import torch
 import torch.nn.functional as F
 from pathlib import Path
 from itertools import islice
-from torch.utils.data import IterableDataset, Dataset
-from datasets import load_from_disk
+from datasets import load_from_disk, interleave_datasets
 from transformers import (
 	AutoTokenizer,
 	EarlyStoppingCallback,
-	Trainer,
-	TrainerCallback,
 	TrainingArguments,
 )
 from safetensors.torch import load_file
-from model.architecture import MidnightGPT
 from utils.configuration import load_global_configuration
-from training_pipeline.dataset import StreamingUntokenizedDataset, SimpleDataset
+from model.architecture import MidnightGPT
+from training_pipeline.dataset import StreamingTokenizedDataset, SimpleDataset
 from training_pipeline.trainer import MidnightTrainer
 from training_pipeline.callbacks import SaveBestModelCallback, TextGenerationCallback, TokenCounterCallback
 from training_pipeline.collate import CausalLMDataCollator
 
+
 MLFLOW_EXPERIMENT_NAME = "midnight_huggingface_training"
 MLFLOW_TRACKING_URI = "file:./mlruns"
-RUN_NAME = "Midnight-GPT"
-HTML_RE = re.compile(r"<(?!\|endoftext\|)[^>]+>")
-CODE_RE = re.compile(r"(var\s+\w+\s*=|function\s*\(|document\.|console\.|=>|\{|\})")
+RUN_NAME = "Midnight-GPT-MIX"
 
 os.makedirs("./mlruns", exist_ok=True)
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
-CHECKPOINT_DIR = "./checkpoints"
 OPTUNA_BEST_TRIAL_PATH = Path("./checkpoints/optuna/best_params_1775406019891.jsonl")
 GEN_PROMPT = "Durante o período medieval"
 
-CHECKPOINT="./checkpoints/training/second-iteration/checkpoint-74000/model.safetensors"
+CHECKPOINT="./checkpoints/training/third-iteration/checkpoint-74000/model.safetensors"
 GLOBAL_CONFIGURATION = load_global_configuration("./config/global_configuration.yaml")
 
 
@@ -54,10 +47,7 @@ def load_best_params(path):
 
 	return records[0]["params"]
 
-
 def main():
-	os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-
 	tokenizer = AutoTokenizer.from_pretrained("gpt2", use_fast=True)
 	tokenizer.pad_token = tokenizer.eos_token
 
@@ -74,22 +64,58 @@ def main():
 	print(f"Model size (parameters): {params_count:,}")
 	print("==============================")
 
-	raw_train_dataset = load_from_disk("./dataset/untokenized/brwac_train").shuffle(seed=42)
-	train_dataset = StreamingUntokenizedDataset(
+	raw_finepdf_train_dataset = load_from_disk("./dataset/tokenized/finepdf-train-512").shuffle(seed=42)
+	raw_wikipedia_train_dataset = load_from_disk("./dataset/tokenized/wikipedia-train-512").shuffle(seed=42)
+
+	raw_train_dataset = interleave_datasets(
+		[
+			raw_wikipedia_train_dataset,
+			raw_finepdf_train_dataset
+		],
+		probabilities=[0.6, 0.4],
+		seed=42,
+		stopping_strategy="first_exhausted"
+	)
+	
+	train_dataset = StreamingTokenizedDataset(
 		raw_train_dataset,
 		tokenizer,
 		config["context_size"]
 	)
 
-	raw_val_dataset = load_from_disk("./dataset/untokenized/brwac_val").shuffle(seed=42)
-	val_dataset = StreamingUntokenizedDataset(
+	raw_finepdf_val_dataset = load_from_disk("./dataset/tokenized/finepdf-val-512").shuffle(seed=42)
+	raw_wikipedia_val_dataset = load_from_disk("./dataset/tokenized/wikipedia-val-512").shuffle(seed=42)
+
+	raw_val_dataset = interleave_datasets(
+		[
+			raw_wikipedia_val_dataset,
+			raw_finepdf_val_dataset
+		],
+		probabilities=[0.6, 0.4],
+		seed=42,
+		stopping_strategy="first_exhausted"
+	)
+
+	val_dataset = StreamingTokenizedDataset(
 		raw_val_dataset,
 		tokenizer,
 		config["context_size"]
 	)
 
-	raw_test_dataset = load_from_disk("./dataset/untokenized/brwac_test").shuffle(seed=42)
-	test_dataset = StreamingUntokenizedDataset(
+	raw_finepdf_test_dataset = load_from_disk("./dataset/tokenized/finepdf-test-512").shuffle(seed=42)
+	raw_wikipedia_test_dataset = load_from_disk("./dataset/tokenized/wikipedia-test-512").shuffle(seed=42)
+
+	raw_test_dataset = interleave_datasets(
+		[
+			raw_wikipedia_test_dataset,
+			raw_finepdf_test_dataset
+		],
+		probabilities=[0.6, 0.4],
+		seed=42,
+		stopping_strategy="first_exhausted"
+	)
+
+	test_dataset = StreamingTokenizedDataset(
 		raw_test_dataset,
 		tokenizer,
 		config["context_size"]
@@ -98,8 +124,8 @@ def main():
 	best_params = load_best_params(OPTUNA_BEST_TRIAL_PATH)
 	print("Optuna best trial configuration:", best_params)
 
-	val_eval_dataset = SimpleDataset(list(islice(val_dataset, 2000)))
-	test_eval_dataset = SimpleDataset(list(islice(test_dataset, 2000)))
+	val_eval_dataset = SimpleDataset(list(islice(val_dataset, 10000)))
+	test_eval_dataset = SimpleDataset(list(islice(test_dataset, 10000)))
 
 	model = MidnightGPT(config)
 	state_dict = load_file(CHECKPOINT)
@@ -109,14 +135,14 @@ def main():
 	dataloader_workers = min(2, os.cpu_count() or 1)
 
 	training_args = TrainingArguments(
-		output_dir="./checkpoints/training/third-iteration",
+		output_dir="./checkpoints/training/fourth-iteration",
 		max_steps = 10_000_000,
 		num_train_epochs = 1,
 		per_device_train_batch_size=best_params["batch_size"],
 		per_device_eval_batch_size=best_params["batch_size"],
 		gradient_accumulation_steps=best_params["grad_accum"],
 		max_grad_norm=1.0,
-		learning_rate=3.86e-5 * 0.2,
+		learning_rate=7e-6,
 		lr_scheduler_type="cosine",
 		warmup_steps = 300,
 		weight_decay=best_params["weight_decay"],
@@ -150,9 +176,10 @@ def main():
 			TokenCounterCallback(
 				config["context_size"],
 				best_params["batch_size"],
-				best_params["grad_accum"]
+				best_params["grad_accum"],
+				mlflow
 			),
-			SaveBestModelCallback("./model/dev/midnight_3_backup.pt")
+			SaveBestModelCallback("./model/dev/midnight_4_backup.pt")
 		],
 	)
 
@@ -162,7 +189,7 @@ def main():
 	test_metrics = trainer.evaluate(test_eval_dataset)
 	print("Final test loss:", test_metrics.get("eval_loss"))
 
-	torch.save(trainer.model.state_dict(), "./model/dev/midnight_3.pt")
+	torch.save(trainer.model.state_dict(), "./model/dev/midnight_4.pt")
 
 
 if __name__ == "__main__":

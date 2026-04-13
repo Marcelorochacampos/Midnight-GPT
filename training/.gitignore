@@ -14,7 +14,6 @@ data/
 fonts/
 *.pt
 *.pth
-model/
 
 # Logs
 logs/
@@ -24,7 +23,8 @@ logs/
 .DS_Store
 Thumbs.db
 
-dataset/
+dataset/tokenized
+dataset/untokenized
 model/dev
 model/prod
 checkpoints/training

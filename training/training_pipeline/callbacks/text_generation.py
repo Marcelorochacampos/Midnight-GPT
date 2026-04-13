@@ -1,3 +1,6 @@
+import torch
+from transformers import TrainerCallback
+
 class TextGenerationCallback(TrainerCallback):
 	def __init__(self, tokenizer, config, prompt, max_new_tokens=50, temperature=0.8):
 		self.tokenizer = tokenizer
