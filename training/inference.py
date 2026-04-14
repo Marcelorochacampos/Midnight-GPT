@@ -30,7 +30,7 @@ def main():
 	parser.add_argument(
 		"--prompt",
 		type=str,
-		default="O Futebol brasileiro",
+		default="O período medieval foi marcado pelo",
 		help="Prompt to start generation",
 	)
 	parser.add_argument(

@@ -12,7 +12,7 @@ paths:
     optuna: ./checkpoints/optuna
     training: ./checkpoints/training
   model:
-    dev_weights: ./model/dev/midnight_3.pt
+    dev_weights: ./model/dev/midnight_4.pt
 
 inference:
   temperature: 0.8
